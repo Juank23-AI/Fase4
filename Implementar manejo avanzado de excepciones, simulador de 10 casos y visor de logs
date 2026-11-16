@@ -49,13 +49,25 @@ class ReservaError(SistemaFJError):
     pass
 
 
+class ServicioNoDisponibleError(SistemaFJError):
+    """Excepción para salas ocupadas o equipos sin unidades disponibles."""
+
+    pass
+
+
+class CalculoInconsistenteError(SistemaFJError):
+    """Excepción para descuentos o valores financieros incoherentes."""
+
+    pass
+
+
 # ----------------------------------------------------------------------
 # Arquitectura Orientada a Objetos (POO)
 # ----------------------------------------------------------------------
 class EntidadBase(ABC):
     """Clase abstracta base que obliga a tener un ID numérico en las entidades."""
 
-    def _init_(self, id_entidad: int):
+    def __init__(self, id_entidad: int):
         self._id_entidad = id_entidad  # Guarda el identificador único interno
 
     @property
@@ -67,8 +79,8 @@ class EntidadBase(ABC):
 class Cliente(EntidadBase):
     """Clase que maneja los datos personales del cliente y su encapsulación."""
 
-    def _init_(self, id_cliente: int, nombre: str = "", documento: str = ""):
-        super()._init_(id_cliente)  # Hereda el ID de la clase base
+    def __init__(self, id_cliente: int, nombre: str = "", documento: str = ""):
+        super().__init__(id_cliente)  # Hereda el ID de la clase base
         self.nombre = nombre  # Asigna el nombre usando el método 'setter'
         self.documento = documento  # Asigna el documento usando su 'setter'
 
@@ -92,7 +104,7 @@ class Cliente(EntidadBase):
         """Valida el documento; si está vacío, coloca 'S/N' (Sin Número)."""
         self._documento = valor.strip() if valor else "S/N"
 
-    def _str_(self):
+    def __str__(self):
         """Devuelve una representación en texto amigable del cliente."""
         return (
             f"{self._nombre} (Doc: {self._documento})"
@@ -104,7 +116,7 @@ class Cliente(EntidadBase):
 class Servicio(ABC):
     """Clase abstracta Servicio (Polimorfismo y Abstracción)."""
 
-    def _init_(self, nombre_servicio: str, precio_base: float):
+    def __init__(self, nombre_servicio: str, precio_base: float):
         self._nombre_servicio = nombre_servicio  # Nombre descriptivo del servicio
         self._precio_base = precio_base  # Costo base por unidad (hora, día, etc.)
 
@@ -132,14 +144,10 @@ class Servicio(ABC):
 class ReservaSala(Servicio):
     """Servicio 1: Hereda de Servicio para la reserva de salas."""
 
-    def _init_(self, numero_sala: str, horas: int, tarifa_hora: float = 25000.0):
-        super()._init_(
-            "Reserva de Sala", tarifa_hora
-        )  # Inicializa la clase padre
+    def __init__(self, numero_sala: str, horas: int, tarifa_hora: float = 25000.0):
+        super().__init__("Reserva de Sala", tarifa_hora)  # Inicializa la clase padre
         if horas <= 0:
-            raise ValidacionError(
-                "Las horas de reserva deben ser mayores a 0."
-            )  # Valida datos
+            raise ValidacionError("Las horas de reserva deben ser mayores a 0.")  # Valida datos
         self.numero_sala = numero_sala  # Guarda la sala elegida
         self.horas = horas  # Guarda el número de horas
 
@@ -156,10 +164,8 @@ class ReservaSala(Servicio):
 class AlquilerEquipos(Servicio):
     """Servicio 2: Hereda de Servicio para el alquiler de equipos tecnológicos."""
 
-    def _init_(
-        self, tipo_equipo: str, cantidad: int, tarifa_diaria: float = 40000.0
-    ):
-        super()._init_("Alquiler de Equipos", tarifa_diaria)
+    def __init__(self, tipo_equipo: str, cantidad: int, tarifa_diaria: float = 40000.0):
+        super().__init__("Alquiler de Equipos", tarifa_diaria)
         if cantidad <= 0:
             raise ValidacionError("La cantidad de equipos debe ser mayor a 0.")
         self.tipo_equipo = tipo_equipo
@@ -178,10 +184,8 @@ class AlquilerEquipos(Servicio):
 class AsesoriaEspecializada(Servicio):
     """Servicio 3: Hereda de Servicio para asesorías profesionales."""
 
-    def _init_(
-        self, area: str, horas_asesoria: int, tarifa_hora: float = 60000.0
-    ):
-        super()._init_("Asesoría Especializada", tarifa_hora)
+    def __init__(self, area: str, horas_asesoria: int, tarifa_hora: float = 60000.0):
+        super().__init__("Asesoría Especializada", tarifa_hora)
         if horas_asesoria <= 0:
             raise ValidacionError("Las horas de asesoría deben ser mayores a 0.")
         self.area = area
@@ -202,19 +206,13 @@ class AsesoriaEspecializada(Servicio):
 class Reserva(EntidadBase):
     """Clase que une al Cliente, el Servicio, la fecha y el estado de la reserva."""
 
-    def _init_(
-        self, id_reserva: int, servicio: Servicio, cliente: Cliente = None
-    ):
-        super()._init_(id_reserva)
+    def __init__(self, id_reserva: int, servicio: Servicio, cliente: Cliente = None):
+        super().__init__(id_reserva)
         self.servicio = servicio  # Asocia el objeto servicio
-        self.cliente = (
-            cliente if cliente else Cliente(0)
-        )  # Asocia el cliente (o anónimo si no hay)
+        self.cliente = cliente if cliente else Cliente(0)  # Asocia el cliente (o anónimo si no hay)
         self.fecha_creacion = datetime.now()  # Guarda la fecha y hora exacta
         self.estado = "Activa"  # Estado inicial de la reserva
-        self.costo_total = (
-            self.servicio.calcular_costo()
-        )  # Calcula el costo automático
+        self.costo_total = self.servicio.calcular_costo()  # Calcula el costo automático
 
     def cerrar_reserva(self):
         """Cambia el estado de la reserva a 'Cerrada' de forma permanente en memoria."""
@@ -235,9 +233,7 @@ class AplicacionSoftwareFJ:
         self.root.geometry("850x650")  # Tamaño de la ventana
         self.root.configure(bg="#f4f6f9")  # Color de fondo general
 
-        self.lista_reservas = (
-            []
-        )  # Memoria temporal: lista donde se guardan los objetos creados
+        self.lista_reservas = []  # Memoria temporal: lista donde se guardan los objetos creados
         self.contador_id = 1  # Autoincrementable para el ID de cada reserva
 
         self._crear_interfaz()  # Llama al método que dibuja los elementos visuales
@@ -245,7 +241,7 @@ class AplicacionSoftwareFJ:
     def _crear_interfaz(self):
         """Construye todos los botones, campos y tablas de la ventana."""
         # Franja superior para el nombre de la empresa
-        frame_header = tk.Frame(self.root, bg="#1e293b",)
+        frame_header = tk.Frame(self.root, bg="#1e293b")
         frame_header.pack(fill=tk.X, pady=15)
 
         # Etiqueta con el nombre requerido: SOFTWARE FJ
@@ -321,9 +317,7 @@ class AplicacionSoftwareFJ:
         )
         self.combo_servicio.current(0)  # Selecciona el primero por defecto
         self.combo_servicio.grid(row=1, column=1, padx=10, pady=5)
-        self.combo_servicio.bind(
-            "<<ComboboxSelected>>", self._actualizar_campos
-        )  # Evento al cambiar selección
+        self.combo_servicio.bind("<<ComboboxSelected>>", self._actualizar_campos)
 
         # Etiquetas y cuadros dinámicos para los detalles del servicio 1
         self.lbl_detalle_1 = tk.Label(
@@ -363,6 +357,33 @@ class AplicacionSoftwareFJ:
         )
         btn_guardar.grid(row=3, column=0, columnspan=4, pady=10)
 
+        # Botones agregados: Simulación de 10 operaciones y Visor de Logs
+        btn_simular = tk.Button(
+            lbl_frame_form,
+            text="Simular 10 Operaciones",
+            command=self._ejecutar_simulaciones,
+            bg="#7c3aed",
+            fg="white",
+            font=("Helvetica", 10, "bold"),
+            relief="flat",
+            padx=10,
+            pady=5,
+        )
+        btn_simular.grid(row=4, column=0, columnspan=2, pady=(0, 8), sticky="ew", padx=(0, 5))
+
+        btn_logs = tk.Button(
+            lbl_frame_form,
+            text="Ver Registro de Logs",
+            command=self._abrir_visor_logs,
+            bg="#475569",
+            fg="white",
+            font=("Helvetica", 10, "bold"),
+            relief="flat",
+            padx=10,
+            pady=5,
+        )
+        btn_logs.grid(row=4, column=2, columnspan=2, pady=(0, 8), sticky="ew", padx=(5, 0))
+
         # Sección de la tabla visual (Treeview) para mostrar las reservas guardadas
         lbl_frame_tabla = tk.LabelFrame(
             main_frame,
@@ -382,9 +403,7 @@ class AplicacionSoftwareFJ:
             "Costo Total",
             "Estado",
         )
-        self.tree = ttk.Treeview(
-            lbl_frame_tabla, columns=columnas, show="headings"
-        )
+        self.tree = ttk.Treeview(lbl_frame_tabla, columns=columnas, show="headings")
 
         # Define los encabezados de las columnas de la tabla
         self.tree.heading("ID", text="ID")
@@ -405,9 +424,7 @@ class AplicacionSoftwareFJ:
         self.tree.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
 
         # Barra de desplazamiento para la tabla
-        scrollbar = ttk.Scrollbar(
-            lbl_frame_tabla, orient=tk.VERTICAL, command=self.tree.yview
-        )
+        scrollbar = ttk.Scrollbar(lbl_frame_tabla, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscroll=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
@@ -451,7 +468,6 @@ class AplicacionSoftwareFJ:
         try:
             nombre_cliente = self.entry_cliente_nombre.get()
             doc_cliente = self.entry_cliente_doc.get()
-            # Si los campos del cliente están vacíos, se crea como None (Cliente Opcional)
             cliente_obj = (
                 Cliente(self.contador_id, nombre_cliente, doc_cliente)
                 if nombre_cliente or doc_cliente
@@ -463,52 +479,36 @@ class AplicacionSoftwareFJ:
             val2 = self.entry_detalle_2.get()
 
             if not val1 or not val2:
-                raise ValidacionError(
-                    "Todos los campos del servicio son obligatorios."
-                )
+                raise ValidacionError("Todos los campos del servicio son obligatorios.")
 
-            # Instanciación polimórfica según la selección del usuario
             if tipo_servicio == "Reserva de Sala":
                 if not val2.isdigit():
                     raise ValidacionError("Las horas deben ser un número entero.")
-                servicio_obj = ReservaSala(
-                    numero_sala=val1, horas=int(val2)
-                )
+                servicio_obj = ReservaSala(numero_sala=val1, horas=int(val2))
 
             elif tipo_servicio == "Alquiler de Equipos":
                 if not val2.isdigit():
-                    raise ValidacionError(
-                        "La cantidad debe ser un número entero."
-                    )
-                servicio_obj = AlquilerEquipos(
-                    tipo_equipo=val1, cantidad=int(val2)
-                )
+                    raise ValidacionError("La cantidad debe ser un número entero.")
+                servicio_obj = AlquilerEquipos(tipo_equipo=val1, cantidad=int(val2))
 
             elif tipo_servicio == "Asesoría Especializada":
                 if not val2.isdigit():
                     raise ValidacionError("Las horas deben ser un número entero.")
-                servicio_obj = AsesoriaEspecializada(
-                    area=val1, horas_asesoria=int(val2)
-                )
+                servicio_obj = AsesoriaEspecializada(area=val1, horas_asesoria=int(val2))
 
-            # Crea el objeto reserva principal y lo añade a la lista en memoria RAM
             reserva = Reserva(self.contador_id, servicio_obj, cliente_obj)
             self.lista_reservas.append(reserva)
             self.contador_id += 1
 
-            logging.info(
-                f"Reserva #{reserva.id_entidad} guardada con éxito para: {reserva.cliente}"
-            )
-            self._refrescar_tabla()  # Actualiza la tabla visual
+            logging.info(f"Reserva #{reserva.id_entidad} guardada con éxito para: {reserva.cliente}")
+            self._refrescar_tabla()
             messagebox.showinfo(
                 "Éxito",
                 f"Reserva #{reserva.id_entidad} registrada y guardada exitosamente.",
             )
 
         except (ValidacionError, ReservaError) as e:
-            logging.warning(
-                f"Error de validación/negocio al guardar reserva: {e}"
-            )
+            logging.warning(f"Error de validación/negocio al guardar reserva: {e}")
             messagebox.showerror("Error de Datos", str(e))
         except Exception as e:
             logging.error(f"Error inesperado del sistema: {e}", exc_info=True)
@@ -537,22 +537,19 @@ class AplicacionSoftwareFJ:
         """Busca la reserva seleccionada en la tabla y la marca como cerrada."""
         seleccion = self.tree.selection()
         if not seleccion:
-            messagebox.showwarning(
-                "Advertencia", "Por favor seleccione una reserva de la lista."
-            )
+            messagebox.showwarning("Advertencia", "Por favor seleccione una reserva de la lista.")
             return
 
         item = self.tree.item(seleccion)
         reserva_id = item["values"][0]
 
         try:
-            # Busca el objeto en la lista usando su ID
             reserva = next(
                 (r for r in self.lista_reservas if r.id_entidad == reserva_id),
                 None,
             )
             if reserva:
-                reserva.cerrar_reserva()  # Ejecuta el cierre del servicio
+                reserva.cerrar_reserva()
                 logging.info(f"Reserva #{reserva_id} fue cerrada.")
                 self._refrescar_tabla()
                 messagebox.showinfo(
@@ -565,6 +562,115 @@ class AplicacionSoftwareFJ:
         except Exception as e:
             logging.error(f"Error inesperado al cerrar reserva: {e}")
             messagebox.showerror("Error", f"No se pudo cerrar la reserva: {e}")
+
+    def _registrar_con_auditoria(self, nombre_cliente: str, doc_cliente: str, tipo_servicio: str, val1: str, val2_str: str):
+        """Registra una reserva usando try/except/else/finally y encadenamiento de excepciones."""
+        exito = False
+        try:
+            if nombre_cliente and any(c.isdigit() for c in nombre_cliente):
+                raise ValidacionError("El nombre del cliente no debe contener números.")
+            if doc_cliente and not doc_cliente.strip().isdigit():
+                raise ValidacionError("El documento del cliente debe ser numérico.")
+
+            cliente_obj = (
+                Cliente(self.contador_id, nombre_cliente, doc_cliente)
+                if nombre_cliente or doc_cliente
+                else None
+            )
+
+            if not val1 or not val2_str:
+                raise ValidacionError("Todos los campos del servicio son obligatorios.")
+            if not val2_str.isdigit():
+                raise ValidacionError("Las horas o cantidad deben ser un número entero.")
+
+            cantidad = int(val2_str)
+
+            if tipo_servicio == "Reserva de Sala":
+                if val1.strip() == "Sala VIP-99":
+                    raise ServicioNoDisponibleError("La 'Sala VIP-99' no se encuentra disponible.")
+                servicio_obj = ReservaSala(numero_sala=val1, horas=cantidad)
+            elif tipo_servicio == "Alquiler de Equipos":
+                if val1.strip() == "Estación de Trabajo":
+                    raise ServicioNoDisponibleError("El equipo 'Estación de Trabajo' no tiene stock.")
+                servicio_obj = AlquilerEquipos(tipo_equipo=val1, cantidad=cantidad)
+            elif tipo_servicio == "Asesoría Especializada":
+                servicio_obj = AsesoriaEspecializada(area=val1, horas_asesoria=cantidad)
+            else:
+                raise ValidacionError("Tipo de servicio no válido.")
+
+            reserva = Reserva(self.contador_id, servicio_obj, cliente_obj)
+        except ValidacionError as err:
+            raise ReservaError(f"Error de validación en reserva: {err}") from err
+        else:
+            self.lista_reservas.append(reserva)
+            self.contador_id += 1
+            exito = True
+            logging.info(f"Reserva #{reserva.id_entidad} registrada para: {reserva.cliente}")
+            return reserva
+        finally:
+            logging.info(f"[Auditoría Finally] Registro finalizado -> {'EXITOSO' if exito else 'FALLIDO'}")
+
+    def _ejecutar_simulaciones(self):
+        """Simula 10 operaciones (válidas e inválidas) sin detener la aplicación."""
+        logging.info("=== INICIO SIMULACIÓN DE 10 OPERACIONES ===")
+        casos = [
+            ("1. Válida - Sala", lambda: self._registrar_con_auditoria("Carlos Pérez", "10987654", "Reserva de Sala", "Sala A-101", "3")),
+            ("2. Válida - Cliente Anónimo", lambda: self._registrar_con_auditoria("", "", "Alquiler de Equipos", "Portátil Core i7", "2")),
+            ("3. Inválida - Documento con letras", lambda: self._registrar_con_auditoria("Ana Gómez", "ABC123", "Reserva de Sala", "Sala B-102", "2")),
+            ("4. Inválida - Sala ocupada", lambda: self._registrar_con_auditoria("Luis Mora", "11223344", "Reserva de Sala", "Sala VIP-99", "2")),
+            ("5. Válida - Asesoría", lambda: self._registrar_con_auditoria("Marta Díaz", "55667788", "Asesoría Especializada", "Redes", "4")),
+            ("6. Inválida - Equipo agotado", lambda: self._registrar_con_auditoria("Pedro Ruiz", "99887766", "Alquiler de Equipos", "Estación de Trabajo", "1")),
+            ("7. Inválida - Horas en cero", lambda: self._registrar_con_auditoria("Sofía Gil", "44332211", "Reserva de Sala", "Sala C-103", "0")),
+            ("8. Inválida - Nombre con números", lambda: self._registrar_con_auditoria("Juan123", "77889900", "Reserva de Sala", "Sala D-104", "1")),
+            ("9. Válida - Cerrar primera reserva", lambda: self.lista_reservas[0].cerrar_reserva()),
+            ("10. Inválida - Cerrar reserva ya cerrada", lambda: self.lista_reservas[0].cerrar_reserva()),
+        ]
+
+        exitosas = 0
+        fallidas = 0
+
+        for nombre_caso, funcion in casos:
+            try:
+                funcion()
+            except SistemaFJError as e:
+                fallidas += 1
+                logging.warning(f"[Simulación - {nombre_caso}] Error controlado: {type(e).__name__} -> {e}")
+            else:
+                exitosas += 1
+                logging.info(f"[Simulación - {nombre_caso}] Completada con éxito.")
+
+        self._refrescar_tabla()
+        messagebox.showinfo(
+            "Simulación Finalizada",
+            f"10 operaciones ejecutadas sin interrupciones:\n"
+            f"• Exitosas: {exitosas}\n"
+            f"• Fallidas controladas en log: {fallidas}",
+        )
+
+    def _abrir_visor_logs(self):
+        """Lee el archivo app_errors.log usando try/except/else/finally y lo muestra en pantalla."""
+        archivo = None
+        try:
+            archivo = open("app_errors.log", "r", encoding="utf-8")
+            contenido = archivo.read()
+        except FileNotFoundError as err:
+            logging.error(f"Archivo de logs no encontrado: {err}")
+            messagebox.showerror("Error", "Aún no existe el archivo 'app_errors.log'.")
+        except OSError as err:
+            logging.error(f"Error leyendo archivo de logs: {err}")
+            messagebox.showerror("Error", f"No se pudo abrir el archivo de logs: {err}")
+        else:
+            ventana_logs = tk.Toplevel(self.root)
+            ventana_logs.title("Auditoría del Sistema - app_errors.log")
+            ventana_logs.geometry("720x400")
+
+            texto_log = tk.Text(ventana_logs, wrap=tk.WORD, bg="#0f172a", fg="#e2e8f0", font=("Consolas", 9))
+            texto_log.insert(tk.END, contenido if contenido else "Sin registros aún.")
+            texto_log.config(state=tk.DISABLED)
+            texto_log.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        finally:
+            if archivo and not archivo.closed:
+                archivo.close()
 
 
 # ----------------------------------------------------------------------
